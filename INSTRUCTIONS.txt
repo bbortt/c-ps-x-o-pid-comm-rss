@@ -1,0 +1,16 @@
+You are to implement a C tool similar to "ps x -o pid,comm,rss"
+that will show for each process that shares your user ID the amount of
+memory it is using. Scan the /proc directory to find all active
+processes by their process ID (PID). You can find all of the
+information you need for each process under /proc/$PID/status, in
+particular the lines "Name", "Uid" and "VmRSS".
+
+Your output should list on seperate lines the PID, binary name of the
+process and the resident set size (RSS), separated by spaces.
+Your process must return 0 upon successful completion.
+
+Your C program must be called "ps.c".  You will be graded for style
+(compiler warnings (-Wall), memory leaks, etc.) as well as for correct
+output.
+
+Test your program using the "test.sh".

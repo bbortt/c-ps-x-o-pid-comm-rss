@@ -18,4 +18,6 @@ main ()
   while ( NULL != (de = readdir (dir)))
     printf ("%s\n", de -> d_name );
   closedir (dir);
+
+  return 0;
 }
