@@ -1,4 +1,6 @@
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -8,9 +10,12 @@
 /**
  * Global definition of functions
  */
-int throwError(char* message);
-int isSubdirectory(struct dirent *dirent);
-int handleProcDirectory(struct dirent *directory);
+void throw(char* message);
+const int isSubdirectory(const struct dirent *dirent);
+const int handleProcDirectory(const struct dirent *directory);
+const char* getStatusFileName(const struct dirent *directory);
+
+char* PROC_DIR = "/proc";
 
 /**
  * Main entry point.
@@ -21,15 +26,14 @@ int main() {
 	DIR *dir;
 	struct dirent *dirent;
 
-	if (NULL == (dir = opendir("/proc"))) {
-		return throwError("Unable to open directory '/proc'!");
+	if (NULL == (dir = opendir(PROC_DIR))) {
+		throw("Unable to open directory '/proc'!");
 	}
 
 	while (NULL != (dirent = readdir(dir))) {
-		if (1 == isSubdirectory(dirent)) {
+		if (0 != isSubdirectory(dirent)) {
 			if (0 != handleProcDirectory(dirent)) {
-				return throwError(
-						"Error while reading proc information from %s!");
+				throw("Error while reading proc information from %s!");
 			}
 		}
 #if DEBUG
@@ -41,22 +45,23 @@ int main() {
 	}
 
 	if (0 != closedir(dir)) {
-		return throwError(
+		throw(
 				"Could not close directory '/proc': You might need to cleanup manually!");
 	}
 
-	return 0;
+	exit(EXIT_SUCCESS);
 }
 
 /**
  * Little helper that prints a message to the standard
- * error stream and returns the standard error code (1).
+ * error output and returns the standard error code (1).
+ * Works basically like a commonly known exception.
  *
  * @return 1
  */
-int throwError(char* message) {
+void throw(char* message) {
 	perror(strcat(message, "\n"));
-	return 1;
+	exit(EXIT_FAILURE);
 }
 
 /**
@@ -64,9 +69,9 @@ int throwError(char* message) {
  * DT_DIR matches also . and .. which is the current
  * respectively parent directory.
  *
- * @return 1 if this is a sub-directory
+ * @return not 0 if this is a sub-directory
  */
-int isSubdirectory(struct dirent *dirent) {
+const int isSubdirectory(const struct dirent *dirent) {
 #if DEBUG
 	printf("Checking if '%s' is an effective sub-directory?\n", dirent->d_name);
 #endif
@@ -81,10 +86,21 @@ int isSubdirectory(struct dirent *dirent) {
  *
  * @return 0 upon successful read
  */
-int handleProcDirectory(struct dirent *directory) {
+const int handleProcDirectory(const struct dirent *directory) {
 #if DEBUG
-	printf("Handling proc directory '%s'\n", directory->d_name);
+	printf("Handling status information from %s/%s\n", PROC_DIR,
+			directory->d_name);
 #endif
 
+	const char* statusFileName = getStatusFileName(directory);
+
+	printf("%s\n", statusFileName);
+
 	return 0;
+}
+
+const char* getStatusFileName(const struct dirent *directory) {
+	char* fileName;
+	asprintf(&fileName, "%s/%s/%s", PROC_DIR, directory->d_name, "status");
+	return fileName;
 }
