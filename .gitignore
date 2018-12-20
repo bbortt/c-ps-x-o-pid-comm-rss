@@ -54,6 +54,9 @@ dkms.conf
 # Eclipse stuff
 .settings/
 
+# Compiled binary
+ps
+
 # Test script output
 *.out
 delta.txt
