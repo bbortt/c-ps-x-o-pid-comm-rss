@@ -135,8 +135,8 @@ handleProcDirectory (const struct dirent *dirent)
 
   if (access (statusFileName, R_OK) != 0)
     {
-      /* This is not a breaking error..
-       One might have accessed an invalid directory */
+      /* This is not a breaking error.. One might
+       * have accessed an invalid directory */
       return (0);
     }
 
@@ -204,7 +204,10 @@ handleStatusFile (const char* pid, FILE *file)
     {
       throw ("Could not allocate memory: You might need to cleanup manually!");
     }
-  vmrss[0] = '0'; /* initial value because vmrss might not be present in file */
+
+  /* initial value because vmrss might not be present
+   * in the current file */
+  vmrss[0] = '0';
 
   static char buffer[64];
   while (NULL != fgets (buffer, 64, file))
@@ -229,9 +232,7 @@ handleStatusFile (const char* pid, FILE *file)
   if ((unsigned int) atoi (uid) == UID)
     {
 #ifdef DEBUG
-      printf("-----\npid: '%s'\n", pid);
-      printf("name: '%s'\n", name);
-      printf("vmrss: '%s', %d\n", vmrss, strlen(vmrss));
+      printf("-----------------------\n");
 #endif
       printf ("%s\t%s\t%s\n", pid, name, vmrss);
     }
@@ -253,19 +254,28 @@ handleStatusFile (const char* pid, FILE *file)
   return (0);
 }
 
+/**
+ * Trims a line in a status file of form [name]: [value]
+ * to a string containing just the value.
+ *
+ * @return the value sting (by pointer)
+ */
 char*
 trimStatusLine (char* line)
 {
 #ifdef DEBUG
-  printf("Trimming line: '%s', size: %d\n", line,strlen(line));
+  printf("Trimming line: '%s', size: %d\n", line, strlen(line));
 #endif
 
+  /* Remove column name including delimiter ':' */
   int i = strcspn (line, ":") + 1; /* + 1 to remove ':' */
   memmove (line, line + i, strlen (line) - i);
 
+  /* Look out for actual value, skip tabs and blank spaces */
   int j = strspn (line, "\t ");
   memmove (line, line + j, strlen (line) - j);
 
+  /* Trim trailing blank spaces */
   for (int k = strcspn (line, "\n\t "); k < strlen (line); k++)
     {
       line[k] = 0;
