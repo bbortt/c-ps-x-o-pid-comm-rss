@@ -1,9 +1,10 @@
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <dirent.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define DEBUG 1 // 0 for production
 
@@ -12,8 +13,8 @@
  */
 void throw(char* message);
 const int isSubdirectory(const struct dirent *dirent);
-const int handleProcDirectory(const struct dirent *directory);
-const char* getStatusFileName(const struct dirent *directory);
+const int handleProcDirectory(const struct dirent *dirent);
+const char* getStatusFileName(const struct dirent *dirent);
 
 char* PROC_DIR = "/proc";
 
@@ -23,8 +24,8 @@ char* PROC_DIR = "/proc";
  * @return 0 on success
  */
 int main() {
-	DIR *dir;
-	struct dirent *dirent;
+	static DIR *dir;
+	static struct dirent *dirent;
 
 	if (NULL == (dir = opendir(PROC_DIR))) {
 		throw("Unable to open directory '/proc'!");
@@ -46,7 +47,7 @@ int main() {
 
 	if (0 != closedir(dir)) {
 		throw(
-				"Could not close directory '/proc': You might need to cleanup manually!");
+				"Could not close directory '/proc': You might need to do manual cleanup!");
 	}
 
 	exit(EXIT_SUCCESS);
@@ -54,10 +55,7 @@ int main() {
 
 /**
  * Little helper that prints a message to the standard
- * error output and returns the standard error code (1).
- * Works basically like a commonly known exception.
- *
- * @return 1
+ * error output and exits using an error code (not 0).
  */
 void throw(char* message) {
 	perror(strcat(message, "\n"));
@@ -86,21 +84,45 @@ const int isSubdirectory(const struct dirent *dirent) {
  *
  * @return 0 upon successful read
  */
-const int handleProcDirectory(const struct dirent *directory) {
+const int handleProcDirectory(const struct dirent *dirent) {
 #if DEBUG
 	printf("Handling status information from %s/%s\n", PROC_DIR,
-			directory->d_name);
+			dirent->d_name);
 #endif
 
-	const char* statusFileName = getStatusFileName(directory);
+	static FILE *file;
+	const char* statusFileName = getStatusFileName(dirent);
 
-	printf("%s\n", statusFileName);
+	if (access(statusFileName, R_OK) != 0) {
+		// This is not a breaking error..
+		// One might have accessed an invalid directory
+		return 0;
+	}
+
+#if DEBUG
+	printf("Working on file '%s'\n", statusFileName);
+#endif
+
+	if (NULL == (file = fopen(statusFileName, "r"))) {
+		throw("Could not open current working file!");
+	}
+
+	if (0 != fclose(file)) {
+		throw(
+				"Could not close current file: You might need to do manual cleanup!");
+	}
 
 	return 0;
 }
 
-const char* getStatusFileName(const struct dirent *directory) {
-	char* fileName;
-	asprintf(&fileName, "%s/%s/%s", PROC_DIR, directory->d_name, "status");
+/**
+ * Concatenate a fully qualifying status-file name based
+ * on the /proc directory and the current directory name.
+ *
+ * @return /proc/${dirent->d_name}/status
+ */
+const char* getStatusFileName(const struct dirent *dirent) {
+	static char* fileName;
+	asprintf(&fileName, "%s/%s/%s", PROC_DIR, dirent->d_name, "status");
 	return fileName;
 }
