@@ -285,6 +285,7 @@ trimStatusLine (char* line)
   static char* kBSubstring;
   if (NULL != (kBSubstring = strstr (line, "kB")))
     {
+      kBSubstring[-1] = 0;
       kBSubstring[0] = 0;
       kBSubstring[1] = 0;
     }
