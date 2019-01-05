@@ -212,17 +212,17 @@ handleStatusFile (const char* pid, FILE *file)
   static char buffer[64];
   while (NULL != fgets (buffer, 64, file))
     {
-      if (NULL != strstr (buffer, "Name"))
+      if (NULL != strstr (buffer, "Name:"))
 	{
 	  name = strcpy (name, buffer);
 	  name = trimStatusLine (name);
 	}
-      else if (NULL != strstr (buffer, "Uid"))
+      else if (NULL != strstr (buffer, "Uid:"))
 	{
 	  uid = strcpy (uid, buffer);
 	  uid = trimStatusLine (uid);
 	}
-      else if (NULL != strstr (buffer, "VmRSS"))
+      else if (NULL != strstr (buffer, "VmRSS:"))
 	{
 	  vmrss = strcpy (vmrss, buffer);
 	  vmrss = trimStatusLine (vmrss);
@@ -234,7 +234,7 @@ handleStatusFile (const char* pid, FILE *file)
 #ifdef DEBUG
       printf("-----------------------\n");
 #endif
-      printf ("%s\t%s\t%s\n", pid, name, vmrss);
+      printf ("%5s %-15s %6s\n", pid, name, vmrss);
     }
 #ifdef DEBUG
   else
@@ -258,7 +258,7 @@ handleStatusFile (const char* pid, FILE *file)
  * Trims a line in a status file of form [name]: [value]
  * to a string containing just the value.
  *
- * @return the value sting (by pointer)
+ * @return the value srting (by pointer)
  */
 char*
 trimStatusLine (char* line)
@@ -268,17 +268,25 @@ trimStatusLine (char* line)
 #endif
 
   /* Remove column name including delimiter ':' */
-  int i = strcspn (line, ":") + 1; /* + 1 to remove ':' */
+  const int i = strcspn (line, ":") + 1; /* + 1 to remove ':' */
   memmove (line, line + i, strlen (line) - i);
 
   /* Look out for actual value, skip tabs and blank spaces */
-  int j = strspn (line, "\t ");
+  const int j = strspn (line, "\t ");
   memmove (line, line + j, strlen (line) - j);
 
-  /* Trim trailing blank spaces */
-  for (int k = strcspn (line, "\n\t "); k < strlen (line); k++)
+  /* Trim trailing newline */
+  for (int k = strcspn (line, "\n"); k < strlen (line); k++)
     {
       line[k] = 0;
+    }
+
+  /* Remove 'kB' if present */
+  static char* kBSubstring;
+  if (NULL != (kBSubstring = strstr (line, "kB")))
+    {
+      kBSubstring[0] = 0;
+      kBSubstring[1] = 0;
     }
 
 #ifdef DEBUG
