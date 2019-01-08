@@ -10,7 +10,7 @@
 /*
  * Global definition of functions
  */
-void
+const int
 scanProcDirectory ();
 const int
 isValidProcessSubdirectory (const struct dirent *dirent);
@@ -20,7 +20,7 @@ const char*
 getStatusFileName (const struct dirent *dirent);
 const int
 handleStatusFile (const char* pid, FILE *file);
-void
+const int
 extractValueFromBuffer (char* destination, const char* buffer);
 
 /*
@@ -51,7 +51,10 @@ main ()
   /* Assign current uid once */
   UID = getuid ();
 
-  scanProcDirectory ();
+  if (0 != scanProcDirectory ())
+    {
+      throw ("Failed to execute application!");
+    }
 
   exit (EXIT_SUCCESS);
 }
@@ -60,8 +63,10 @@ main ()
  * Scan /proc directory for processes (= folders) and
  * read pid, comm and rss from status file in that sub-
  * folder. Prints the result to standard output stream.
+ *
+ * @return 0 if the process worked through
  */
-void
+const int
 scanProcDirectory ()
 {
   static DIR *dir;
@@ -95,6 +100,8 @@ scanProcDirectory ()
       throw (
 	  "Could not close directory '/proc': You might need to do manual cleanup!");
     }
+
+  return (0);
 }
 
 /*
@@ -133,7 +140,7 @@ handleProcDirectory (const struct dirent *dirent)
   static FILE *file;
   const char* statusFileName = getStatusFileName (dirent);
 
-  if (access (statusFileName, R_OK) != 0)
+  if (0 != access (statusFileName, R_OK))
     {
       /* This is not a breaking error.. One might
        * have accessed an invalid directory */
@@ -199,15 +206,27 @@ handleStatusFile (const char* pid, FILE *file)
     {
       if (0 == strncmp ("Name:", buffer, 5))
 	{
-	  extractValueFromBuffer (name, buffer);
+	  if (0 != extractValueFromBuffer (name, buffer))
+	    {
+	      throw (
+		  "Error while processing file: You may need to cleanup manually!");
+	    }
 	}
       else if (0 == strncmp ("Uid:", buffer, 4))
 	{
-	  extractValueFromBuffer (uid, buffer);
+	  if (0 != extractValueFromBuffer (uid, buffer))
+	    {
+	      throw (
+		  "Error while processing file: You may need to cleanup manually!");
+	    }
 	}
       else if (0 == strncmp ("VmRSS:", buffer, 6))
 	{
-	  extractValueFromBuffer (vmrss, buffer);
+	  if (0 != extractValueFromBuffer (vmrss, buffer))
+	    {
+	      throw (
+		  "Error while processing file: You may need to cleanup manually!");
+	    }
 	}
     }
 
@@ -237,7 +256,7 @@ handleStatusFile (const char* pid, FILE *file)
  * [key]: [value]. It is appended to the destination
  * pointer without any terminating null-byte ('\0').
  */
-void
+const int
 extractValueFromBuffer (char* destination, const char* buffer)
 {
 #ifdef DEBUG
@@ -272,4 +291,6 @@ extractValueFromBuffer (char* destination, const char* buffer)
 #ifdef DEBUG
   printf("String trimmed to: '%s'\n", destination);
 #endif
+
+  return (0);
 }
