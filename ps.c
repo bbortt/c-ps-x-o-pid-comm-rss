@@ -20,8 +20,8 @@ const char*
 getStatusFileName (const struct dirent *dirent);
 const int
 handleStatusFile (const char* pid, FILE *file);
-char*
-trimStatusLine (char* line);
+void
+extractValueFromBuffer (char* destination, const char* buffer);
 
 /*
  * Global constants
@@ -187,45 +187,27 @@ handleStatusFile (const char* pid, FILE *file)
   printf("Handling file /proc/%s/status\n", pid);
 #endif
 
-  char* name;
-  if (NULL == (name = malloc (64)))
-    {
-      throw ("Could not allocate memory: You might need to cleanup manually!");
-    }
+  char name[64];
+  char uid[64];
+  char vmrss[64];
 
-  char* uid;
-  if (NULL == (uid = malloc (64)))
-    {
-      throw ("Could not allocate memory: You might need to cleanup manually!");
-    }
-
-  char* vmrss;
-  if (NULL == (vmrss = malloc (64)))
-    {
-      throw ("Could not allocate memory: You might need to cleanup manually!");
-    }
-
-  /* initial value because vmrss might not be present
-   * in the current file */
+  /* initial value because vmrss may not be present in the current file */
   vmrss[0] = '0';
 
   static char buffer[64];
   while (NULL != fgets (buffer, 64, file))
     {
-      if (NULL != strstr (buffer, "Name:"))
+      if (0 == strncmp ("Name:", buffer, 5))
 	{
-	  name = strcpy (name, buffer);
-	  name = trimStatusLine (name);
+	  extractValueFromBuffer (name, buffer);
 	}
-      else if (NULL != strstr (buffer, "Uid:"))
+      else if (0 == strncmp ("Uid:", buffer, 4))
 	{
-	  uid = strcpy (uid, buffer);
-	  uid = trimStatusLine (uid);
+	  extractValueFromBuffer (uid, buffer);
 	}
-      else if (NULL != strstr (buffer, "VmRSS:"))
+      else if (0 == strncmp ("VmRSS:", buffer, 6))
 	{
-	  vmrss = strcpy (vmrss, buffer);
-	  vmrss = trimStatusLine (vmrss);
+	  extractValueFromBuffer (vmrss, buffer);
 	}
     }
 
@@ -243,10 +225,6 @@ handleStatusFile (const char* pid, FILE *file)
     }
 #endif
 
-  free (vmrss);
-  free (uid);
-  free (name);
-
 #ifdef DEBUG
   printf("Successfully freed allocated memory\n");
 #endif
@@ -255,35 +233,36 @@ handleStatusFile (const char* pid, FILE *file)
 }
 
 /**
- * Trims a line in a status file of form [name]: [value]
- * to a string containing just the value.
- *
- * @return the value srting (by pointer)
+ * Extract the value string from a buffer similar to
+ * [key]: [value]. It is appended to the destination
+ * pointer without any terminating null-byte ('\0').
  */
-char*
-trimStatusLine (char* line)
+void
+extractValueFromBuffer (char* destination, const char* buffer)
 {
 #ifdef DEBUG
-  printf("Trimming line: '%s', size: %d\n", line, strlen(line));
+  printf("Trimming string: '%s', size: %d\n", destination, strlen(temporaryString));
 #endif
 
+  destination = strcpy (destination, buffer);
+
   /* Remove column name including delimiter ':' */
-  const int i = strcspn (line, ":") + 1; /* + 1 to remove ':' */
-  memmove (line, line + i, strlen (line) - i);
+  const int i = strcspn (destination, ":") + 1; /* + 1 to remove ':' */
+  memmove (destination, destination + i, strlen (destination) - i);
 
   /* Look out for actual value, skip tabs and blank spaces */
-  const int j = strspn (line, "\t ");
-  memmove (line, line + j, strlen (line) - j);
+  const int j = strspn (destination, "\t ");
+  memmove (destination, destination + j, strlen (destination) - j);
 
-  /* Trim trailing newline */
-  for (int k = strcspn (line, "\n"); k < strlen (line); k++)
+  /* Trim trailing newline character */
+  for (int k = strcspn (destination, "\n"); k < strlen (destination); k++)
     {
-      line[k] = 0;
+      destination[k] = 0;
     }
 
-  /* Remove 'kB' if present */
+  /* Remove ' kB' if present */
   static char* kBSubstring;
-  if (NULL != (kBSubstring = strstr (line, "kB")))
+  if (NULL != (kBSubstring = strstr (destination, "kB")))
     {
       kBSubstring[-1] = 0;
       kBSubstring[0] = 0;
@@ -291,8 +270,6 @@ trimStatusLine (char* line)
     }
 
 #ifdef DEBUG
-  printf("Line trimmed to: '%s'\n", line);
+  printf("String trimmed to: '%s'\n", destination);
 #endif
-
-  return (line);
 }
